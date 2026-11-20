@@ -1,0 +1,464 @@
+/* =========================================================================
+   Kalender — gaya aplikasi (light mode saja, system font)
+   ========================================================================= */
+
+:root {
+  --bg: #FAFAF8;
+  --surface: #FFFFFF;
+  --ink: #1C1C1E;
+  --ink-soft: #62666D;
+  --ink-faint: #C8CACE;      /* tanggal di luar bulan aktif */
+  --ink-faint-text: #AEB1B6; /* label hari libur di luar bulan aktif */
+  --line: #ECECE8;
+  --red: #CF3A2F;
+  --green: #17803D;
+  --week-number: #A2A5AA;
+
+  --wk-col: 22px;
+  --label-base: clamp(8px, 2.45vw, 10.5px);
+  --ease: cubic-bezier(0.22, 0.7, 0.3, 1);
+
+  color-scheme: light;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial, sans-serif;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---- Layout ----------------------------------------------------------- */
+
+.app {
+  height: 100vh;
+  height: 100dvh;
+  max-width: 600px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  padding:
+    calc(env(safe-area-inset-top) + 12px)
+    max(8px, env(safe-area-inset-right))
+    calc(env(safe-area-inset-bottom) + 6px)
+    max(8px, env(safe-area-inset-left));
+  overflow: hidden;
+}
+
+/* ---- Header & informasi hari ini -------------------------------------- */
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 8px;
+  min-height: 24px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  flex: none;
+}
+
+.brand-mark {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--red);
+}
+
+.today-label {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* ---- Navigasi bulan ---------------------------------------------------- */
+
+.month-bar {
+  padding: 6px 2px 4px;
+}
+
+.month-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: clamp(24px, 7.2vw, 30px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  transition: background-color 0.15s;
+}
+
+.month-button:active { background: rgba(0, 0, 0, 0.05); }
+
+.month-name { font-weight: 700; }
+.month-year { font-weight: 400; color: var(--ink-soft); }
+
+.month-chevron {
+  width: 20px;
+  height: 20px;
+  color: var(--ink-soft);
+  stroke-width: 2.4;
+  margin-top: 2px;
+}
+
+/* ---- Header nama hari ------------------------------------------------- */
+
+.weekdays,
+.week {
+  display: grid;
+  grid-template-columns: var(--wk-col) repeat(7, minmax(0, 1fr));
+}
+
+.weekdays {
+  padding: 8px 0 7px;
+  border-bottom: 1px solid var(--line);
+}
+
+.weekday {
+  text-align: center;
+  font-size: clamp(9.5px, 2.85vw, 12.5px);
+  font-weight: 600;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.weekday.is-friday { color: var(--green); }
+.weekday.is-weekend { color: var(--red); }
+
+/* ---- Grid kalender ----------------------------------------------------- */
+
+.calendar-viewport {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  touch-action: pan-y;          /* gesture horizontal ditangani JS, vertikal tetap milik browser */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.month {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: repeat(6, minmax(0, 1fr));
+  background: var(--bg);
+}
+
+.calendar-viewport.is-dragging .month { will-change: transform; }
+
+.week { border-bottom: 1px solid var(--line); min-height: 0; }
+.week:last-child { border-bottom: 0; }
+
+.week-number {
+  padding-top: 11px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--week-number);
+  font-variant-numeric: tabular-nums;
+}
+
+.day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
+  padding: 4px 1px 3px;
+  overflow: hidden;
+}
+
+.day-number {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: clamp(15px, 4.5vw, 18px);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+/* Warna tanggal (prioritas: luar bulan > merah > hijau > normal) */
+.tone-normal .day-number { color: var(--ink); }
+.tone-green  .day-number { color: var(--green); }
+.tone-red    .day-number { color: var(--red); }
+.tone-muted  .day-number { color: var(--ink-faint); }
+
+/* Highlight hari ini — prioritas tertinggi, warna lingkaran mengikuti jenis hari */
+.is-today .day-number { color: #fff; font-weight: 700; background: var(--ink); }
+.is-today.base-green .day-number { background: var(--green); }
+.is-today.base-red   .day-number { background: var(--red); }
+.is-today.is-outside .day-number { opacity: 0.45; }
+
+/* Indikator kecil hari libur / cuti bersama */
+.holiday-dot {
+  position: absolute;
+  top: 1px;
+  right: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--red);
+  box-shadow: 0 0 0 1.5px var(--bg);
+}
+.is-outside .holiday-dot { opacity: 0.4; }
+
+/* Nama hari libur di bawah angka tanggal */
+.holiday-labels {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  margin-top: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow: hidden;
+  font-size: calc(var(--label-base) * var(--label-scale, 1));
+  line-height: 1.16;
+  font-weight: 500;
+  text-align: center;
+  color: var(--red);
+  overflow-wrap: normal;   /* kata utuh; JS mengecilkan teks bila tidak muat */
+}
+
+/* Fallback terakhir bila pada ukuran minimum kata masih terlalu lebar */
+.day.is-tight .holiday-labels { overflow-wrap: anywhere; }
+
+.is-outside .holiday-labels { color: var(--ink-faint-text); }
+
+.holiday-label { display: block; padding: 0 1px; }
+
+/* ---- Pemilih bulan & tahun (bottom sheet) ------------------------------ */
+
+.picker {
+  width: 100%;
+  max-width: 600px;
+  max-height: 85dvh;
+  margin: auto auto 0;
+  padding: 0;
+  border: 0;
+  border-radius: 22px 22px 0 0;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+
+.picker[open] { animation: sheet-in 0.26s var(--ease); }
+.picker::backdrop { background: rgba(28, 28, 30, 0.32); }
+.picker[open]::backdrop { animation: fade-in 0.2s ease-out; }
+
+@keyframes sheet-in { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+.sheet {
+  padding: 8px 16px calc(env(safe-area-inset-bottom) + 18px);
+}
+
+.sheet-handle {
+  width: 36px;
+  height: 4px;
+  margin: 0 auto 10px;
+  border-radius: 2px;
+  background: #DADBDD;
+}
+
+.sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  color: var(--ink);
+}
+.icon-button svg { width: 22px; height: 22px; }
+.icon-button:active { background: rgba(0, 0, 0, 0.06); }
+.icon-button:disabled { opacity: 0.25; cursor: default; }
+.icon-button[hidden] { display: grid; visibility: hidden; }
+
+.year-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 48px;
+  padding: 0 16px;
+  border-radius: 24px;
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.year-toggle svg { width: 18px; height: 18px; color: var(--ink-soft); transition: transform 0.2s; }
+.year-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+.year-toggle:active { background: rgba(0, 0, 0, 0.06); }
+
+.picker-months,
+.picker-years {
+  display: grid;
+  gap: 8px;
+}
+
+.picker-months { grid-template-columns: repeat(3, 1fr); }
+
+.picker-years {
+  grid-template-columns: repeat(4, 1fr);
+  max-height: min(48dvh, 340px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 2px;
+}
+
+.picker-months[hidden],
+.picker-years[hidden] { display: none; }
+
+.picker-option {
+  position: relative;
+  min-height: 52px;
+  border-radius: 14px;
+  background: #F3F3F1;
+  font-size: 15px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.picker-option:active { background: #E8E8E5; }
+
+/* Penanda bulan/tahun berjalan */
+.picker-option.is-current::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 7px;
+  width: 5px;
+  height: 5px;
+  margin-left: -2.5px;
+  border-radius: 50%;
+  background: var(--red);
+}
+
+.picker-option.is-selected { background: var(--ink); color: #fff; font-weight: 650; }
+.picker-option.is-selected.is-current::after { background: #fff; }
+
+/* ---- Dialog reminder (SweetAlert2) ------------------------------------ */
+
+.swal2-container { padding: 16px; }
+
+.kal-alert.swal2-popup {
+  width: min(360px, 100%);
+  padding: 24px 22px 22px;
+  border-radius: 20px;
+  font-family: inherit;
+  color: var(--ink);
+}
+
+.kal-alert-icon.swal2-icon {
+  margin: 4px auto 14px;
+  transform: scale(0.72);
+}
+.kal-alert-icon.swal2-icon.swal2-info { border-color: #D7D9DC; color: var(--ink); }
+
+.kal-alert-title.swal2-title {
+  padding: 0;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.kal-alert-text.swal2-html-container {
+  margin: 10px 0 0;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.swal2-actions { width: 100%; margin-top: 20px; }
+
+.kal-alert-button {
+  width: 100%;
+  min-height: 48px;
+  border-radius: 14px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 15.5px;
+  font-weight: 650;
+}
+.kal-alert-button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* ---- Lain-lain ---------------------------------------------------------- */
+
+.noscript {
+  position: fixed;
+  inset: auto 16px 24px;
+  text-align: center;
+  color: var(--ink-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .picker[open], .picker[open]::backdrop { animation: none; }
+}
+
+/* Layar sangat pendek (mis. landscape) — tetap rapi walau bukan prioritas */
+@media (max-height: 520px) {
+  .app { padding-top: calc(env(safe-area-inset-top) + 6px); }
+  .month-bar { padding: 0; }
+  .month-button { min-height: 40px; font-size: 22px; }
+  .weekdays { padding: 4px 0; }
+  .day-number { width: 26px; height: 26px; font-size: 14px; }
+}
